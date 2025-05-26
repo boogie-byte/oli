@@ -49,7 +49,6 @@ func tickStatusLineReset() tea.Cmd {
 
 type Outline struct {
 	workspace *data.Workspace
-	style     style
 
 	windowWidth  int
 	windowHeight int
@@ -65,7 +64,6 @@ type Outline struct {
 func NewOutline(workspace *data.Workspace) (*Outline, error) {
 	m := &Outline{
 		workspace: workspace,
-		style:     defaultTheme.style(),
 	}
 
 	m.textInput = textinput.New()
@@ -436,8 +434,8 @@ func (m *Outline) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Outline) renderBreadcrumbs() string {
 	breadcrumbs := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		m.style.breadcrumbs.Render(m.breadcrumbs()),
-		m.style.breadcrumbHighlited.Render(m.workspace.Root().Title()),
+		styleBreadcrumbs.Render(m.breadcrumbs()),
+		styleBreadcrumbHighlited.Render(m.workspace.Root().Title()),
 	)
 
 	breadcrumbs = runewidth.Truncate(breadcrumbs, m.windowWidth-2, "...")
@@ -446,14 +444,12 @@ func (m *Outline) renderBreadcrumbs() string {
 		m.windowWidth,
 		lipgloss.Left,
 		breadcrumbs,
-		m.style.whitespaceOpts...,
 	)
 
 	breadcrumbs = lipgloss.PlaceVertical(
 		3,
 		lipgloss.Center,
 		breadcrumbs,
-		m.style.whitespaceOpts...,
 	)
 
 	return breadcrumbs
@@ -467,9 +463,9 @@ func (m *Outline) renderItems() string {
 		var title string
 		if m.workspace.Cursor() == item {
 			if item.Done() {
-				m.textInput.TextStyle = m.style.itemDone
+				m.textInput.TextStyle = styleItemDone
 			} else {
-				m.textInput.TextStyle = m.style.base
+				m.textInput.TextStyle = lipgloss.NewStyle()
 			}
 			title = m.textInput.View()
 		} else {
@@ -479,21 +475,18 @@ func (m *Outline) renderItems() string {
 			title = runewidth.Truncate(title, maxTitleWidth, "...")
 
 			if item.Done() {
-				title = m.style.itemDone.Render(title)
-			} else {
-				title = m.style.base.Render(title)
+				title = styleItemDone.Render(title)
 			}
 		}
 
 		bullet := getBullet(item)
-		bullet = m.style.bullet.Render(bullet)
+		bullet = styleBullet.Render(bullet)
 
 		itemRow := lipgloss.JoinHorizontal(lipgloss.Top, bullet, title)
 		itemRow = lipgloss.PlaceHorizontal(
 			m.windowWidth-padding,
 			lipgloss.Left,
 			itemRow,
-			m.style.whitespaceOpts...,
 		)
 
 		itemStrs = append(itemStrs, itemRow)
@@ -504,14 +497,13 @@ func (m *Outline) renderItems() string {
 		m.windowHeight-4,
 		lipgloss.Top,
 		items,
-		m.style.whitespaceOpts...,
 	)
 
-	return m.style.base.Render(items)
+	return items
 }
 
 func (m *Outline) renderStatusLine() string {
-	return m.style.statusline.
+	return styleStatusline.
 		Width(m.windowWidth).
 		Render(m.statusLine())
 }

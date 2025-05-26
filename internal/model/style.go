@@ -16,133 +16,36 @@ package model
 
 import "github.com/charmbracelet/lipgloss"
 
-type style struct {
-	// Base style
-	base lipgloss.Style
-
-	// Breadcrumbs
-	breadcrumbs lipgloss.Style
-
-	// Highlighted breadcrumb element
-	breadcrumbHighlited lipgloss.Style
-
-	// Done item
-	itemDone lipgloss.Style
-
-	// Bullet element
-	bullet lipgloss.Style
-
-	// Statusline (e.g. bottom bar info)
-	statusline lipgloss.Style
-
-	// Whitespace filing options for Place* methods
-	whitespaceOpts []lipgloss.WhitespaceOption
-}
-
-type theme struct {
-	background lipgloss.TerminalColor
-	foreground lipgloss.TerminalColor
-	grey       lipgloss.TerminalColor
-	red        lipgloss.TerminalColor
-	green      lipgloss.TerminalColor
-	yellow     lipgloss.TerminalColor
-	blue       lipgloss.TerminalColor
-	purple     lipgloss.TerminalColor
-	aqua       lipgloss.TerminalColor
-	orange     lipgloss.TerminalColor
-}
-
-func (t *theme) style() style {
-	base := lipgloss.NewStyle().
-		Background(t.background).
-		Foreground(t.foreground)
-
-	return style{
-		base: base,
-
-		whitespaceOpts: []lipgloss.WhitespaceOption{
-			lipgloss.WithWhitespaceBackground(t.background),
-			lipgloss.WithWhitespaceForeground(t.foreground),
-		},
-
-		breadcrumbs: base.
-			Foreground(t.grey).
-			Italic(true).
-			PaddingLeft(1),
-
-		breadcrumbHighlited: base.
-			Foreground(t.orange),
-
-		itemDone: base.
-			Foreground(t.grey).
-			Strikethrough(true),
-
-		bullet: base.
-			Foreground(t.purple).
-			Padding(0, 1),
-
-		statusline: base.
-			Background(t.grey).
-			Padding(0, 1),
-	}
-}
+const (
+	black   = lipgloss.ANSIColor(0)
+	red     = lipgloss.ANSIColor(1)
+	green   = lipgloss.ANSIColor(2)
+	yellow  = lipgloss.ANSIColor(3)
+	blue    = lipgloss.ANSIColor(4)
+	magenta = lipgloss.ANSIColor(5)
+	cyan    = lipgloss.ANSIColor(6)
+	white   = lipgloss.ANSIColor(7)
+	grey    = lipgloss.ANSIColor(8)
+)
 
 var (
-	// gruvbox-based default theme
-	defaultTheme = theme{
-		background: lipgloss.AdaptiveColor{
-			Light: "#fbf1c7",
-			Dark:  "#282828",
-		},
+	styleBreadcrumbs = lipgloss.NewStyle().
+				Foreground(grey).
+				Italic(true).
+				PaddingLeft(1)
 
-		foreground: lipgloss.AdaptiveColor{
-			Light: "#3c3836",
-			Dark:  "#ebdbb2",
-		},
+	styleBreadcrumbHighlited = lipgloss.NewStyle().
+					Foreground(magenta)
 
-		grey: lipgloss.AdaptiveColor{
-			Light: "#928374",
-			Dark:  "#928374",
-		},
+	styleItemDone = lipgloss.NewStyle().
+			Foreground(grey).
+			Strikethrough(true)
 
-		// grey: lipgloss.AdaptiveColor{
-		// 	Light: "#7c6f64",
-		// 	Dark:  "#a89984",
-		// },
+	styleBullet = lipgloss.NewStyle().
+			Foreground(cyan).
+			Padding(0, 1)
 
-		red: lipgloss.AdaptiveColor{
-			Light: "#9d0006",
-			Dark:  "#fb4934",
-		},
-
-		green: lipgloss.AdaptiveColor{
-			Light: "#79740e",
-			Dark:  "#b8bb26",
-		},
-
-		yellow: lipgloss.AdaptiveColor{
-			Light: "#b57614",
-			Dark:  "#fabd2f",
-		},
-
-		blue: lipgloss.AdaptiveColor{
-			Light: "#076678",
-			Dark:  "#83a598",
-		},
-
-		purple: lipgloss.AdaptiveColor{
-			Light: "#8f3s71",
-			Dark:  "#d3869b",
-		},
-
-		aqua: lipgloss.AdaptiveColor{
-			Light: "#427b58",
-			Dark:  "#8ec07c",
-		},
-
-		orange: lipgloss.AdaptiveColor{
-			Light: "#af3a03",
-			Dark:  "#fe8019",
-		},
-	}
+	styleStatusline = lipgloss.NewStyle().
+			Reverse(true).
+			Padding(0, 1)
 )
