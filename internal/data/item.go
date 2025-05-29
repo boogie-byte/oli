@@ -201,7 +201,7 @@ func (i *Item) NextRow() *Item {
 		return next
 	}
 
-	for p := i.parent; p != nil; p = p.parent {
+	for p := i.parent; p != nil && p != i.workspace.root; p = p.parent {
 		if p.next != nil {
 			return p.next
 		}

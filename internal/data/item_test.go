@@ -580,6 +580,20 @@ func TestItemNextRow(t *testing.T) {
 		nextRow := a.NextRow()
 		assert.Nil(t, nextRow)
 	})
+
+	t.Run("No next row while zoomed", func(t *testing.T) {
+		w, a, b, c := newTestItems()
+		root := w.Root()
+
+		root.Append(a)
+		a.Append(b)
+		root.Append(c)
+
+		w.SetRoot(a)
+
+		nextRow := b.NextRow()
+		assert.Nil(t, nextRow)
+	})
 }
 
 func newTestItems() (*data.Workspace, *data.Item, *data.Item, *data.Item) {
