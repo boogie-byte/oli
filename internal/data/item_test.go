@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/boogie-byte/oli/internal/data"
 )
@@ -34,145 +35,160 @@ func TestNewWorkspace(t *testing.T) {
 
 func TestItemDetach(t *testing.T) {
 	t.Run("DetachFromMiddle", func(t *testing.T) {
-		parent, a, b, c := newTestItems()
+		w, a, b, c := newTestItems()
+		root := w.Root()
 
-		parent.Append(a)
-		parent.Append(b)
-		parent.Append(c)
+		root.Append(a)
+		root.Append(b)
+		root.Append(c)
 
 		b.Detach()
 
-		assertChildrenOrder(t, parent, a, c)
+		assertChildrenOrder(t, root, a, c)
 		assertItemDetached(t, b)
 	})
 
 	t.Run("DetachLast", func(t *testing.T) {
-		parent, a, _, _ := newTestItems()
-		parent.Append(a)
+		w, a, _, _ := newTestItems()
+		root := w.Root()
+
+		root.Append(a)
 
 		a.Detach()
 
-		assertChildrenListEmpty(t, parent)
+		assertChildrenListEmpty(t, root)
 		assertItemDetached(t, a)
 	})
 }
 
 func TestItemMoveAbove(t *testing.T) {
 	t.Run("MoveAboveHead", func(t *testing.T) {
-		parent, a, b, c := newTestItems()
+		w, a, b, c := newTestItems()
+		root := w.Root()
 
-		parent.Append(a)
-		parent.Append(b)
+		root.Append(a)
+		root.Append(b)
 		c.MoveAbove(a)
 
-		assertChildrenOrder(t, parent, c, a, b)
+		assertChildrenOrder(t, root, c, a, b)
 	})
 
 	t.Run("MoveAboveMiddle", func(t *testing.T) {
-		parent, a, b, c := newTestItems()
+		w, a, b, c := newTestItems()
+		root := w.Root()
 
-		parent.Append(a)
-		parent.Append(b)
+		root.Append(a)
+		root.Append(b)
 		c.MoveAbove(b)
 
-		assertChildrenOrder(t, parent, a, c, b)
+		assertChildrenOrder(t, root, a, c, b)
 	})
 }
 
 func TestItemMoveBelow(t *testing.T) {
 	t.Run("MoveBelowTail", func(t *testing.T) {
-		parent, a, b, c := newTestItems()
+		w, a, b, c := newTestItems()
+		root := w.Root()
 
-		parent.Append(a)
-		parent.Append(b)
+		root.Append(a)
+		root.Append(b)
 		c.MoveBelow(b)
 
-		assertChildrenOrder(t, parent, a, b, c)
+		assertChildrenOrder(t, root, a, b, c)
 	})
 
 	t.Run("MoveBelowMiddle", func(t *testing.T) {
-		parent, a, b, c := newTestItems()
+		w, a, b, c := newTestItems()
+		root := w.Root()
 
-		parent.Append(a)
-		parent.Append(b)
+		root.Append(a)
+		root.Append(b)
 		c.MoveBelow(a)
 
-		assertChildrenOrder(t, parent, a, c, b)
+		assertChildrenOrder(t, root, a, c, b)
 	})
 }
 
 func TestItemMoveUp(t *testing.T) {
 	t.Run("NilPrev", func(t *testing.T) {
-		parent, a, b, c := newTestItems()
+		w, a, b, c := newTestItems()
+		root := w.Root()
 
-		parent.Append(a)
-		parent.Append(b)
-		parent.Append(c)
+		root.Append(a)
+		root.Append(b)
+		root.Append(c)
 
 		a.MoveUp()
 
-		assertChildrenOrder(t, parent, a, b, c)
+		assertChildrenOrder(t, root, a, b, c)
 	})
 
 	t.Run("NonNilPrev", func(t *testing.T) {
-		parent, a, b, c := newTestItems()
+		w, a, b, c := newTestItems()
+		root := w.Root()
 
-		parent.Append(a)
-		parent.Append(b)
-		parent.Append(c)
+		root.Append(a)
+		root.Append(b)
+		root.Append(c)
 
 		b.MoveUp()
 
-		assertChildrenOrder(t, parent, b, a, c)
+		assertChildrenOrder(t, root, b, a, c)
 	})
 }
 
 func TestItemMoveDown(t *testing.T) {
 	t.Run("NilNext", func(t *testing.T) {
-		parent, a, b, c := newTestItems()
+		w, a, b, c := newTestItems()
+		root := w.Root()
 
-		parent.Append(a)
-		parent.Append(b)
-		parent.Append(c)
+		root.Append(a)
+		root.Append(b)
+		root.Append(c)
 
 		c.MoveDown()
 
-		assertChildrenOrder(t, parent, a, b, c)
+		assertChildrenOrder(t, root, a, b, c)
 	})
 
 	t.Run("NonNilNext", func(t *testing.T) {
-		parent, a, b, c := newTestItems()
+		w, a, b, c := newTestItems()
+		root := w.Root()
 
-		parent.Append(a)
-		parent.Append(b)
-		parent.Append(c)
+		root.Append(a)
+		root.Append(b)
+		root.Append(c)
 
 		b.MoveDown()
 
-		assertChildrenOrder(t, parent, a, c, b)
+		assertChildrenOrder(t, root, a, c, b)
 	})
 }
 
 func TestItemDemote(t *testing.T) {
 	t.Run("NilPrev", func(t *testing.T) {
-		parent, a, _, _ := newTestItems()
-		parent.Append(a)
+		w, a, _, _ := newTestItems()
+		root := w.Root()
+
+		root.Append(a)
 
 		a.Demote()
 
-		assertChildrenOrder(t, parent, a)
+		assertChildrenOrder(t, root, a)
 	})
 
 	t.Run("NonNilPrev", func(t *testing.T) {
-		parent, a, b, c := newTestItems()
-		parent.Append(a)
-		parent.Append(b)
-		parent.Append(c)
+		w, a, b, c := newTestItems()
+		root := w.Root()
+
+		root.Append(a)
+		root.Append(b)
+		root.Append(c)
 
 		a.SetCollapsed(true, false)
 		b.Demote()
 
-		assertChildrenOrder(t, parent, a, c)
+		assertChildrenOrder(t, root, a, c)
 		assertChildrenOrder(t, a, b)
 
 		assert.False(t, a.Collapsed())
@@ -181,76 +197,399 @@ func TestItemDemote(t *testing.T) {
 
 func TestItemPromote(t *testing.T) {
 	t.Run("RootItem", func(t *testing.T) {
-		parent, _, _, _ := newTestItems()
+		w, _, _, _ := newTestItems()
+		root := w.Root()
 
-		parent.Promote()
+		root.Promote()
 
-		assert.Nil(t, parent.Parent())
+		assert.Nil(t, root.Parent())
 	})
 
 	t.Run("SubRootItem", func(t *testing.T) {
-		parent, a, _, _ := newTestItems()
-		parent.Append(a)
+		w, a, _, _ := newTestItems()
+		root := w.Root()
+
+		root.Append(a)
 
 		a.Promote()
 
-		assertChildrenOrder(t, parent, a)
+		assertChildrenOrder(t, root, a)
 	})
 
 	t.Run("NonNilParent", func(t *testing.T) {
-		w := data.NewWorkspace("", "Grandparent")
-		grandparentItem := w.Root()
+		w, a, b, _ := newTestItems()
+		root := w.Root()
 
-		parentItem := w.NewItem("Parent")
-		grandparentItem.Append(parentItem)
+		root.Append(a)
+		a.Append(b)
 
-		childItem := w.NewItem("Child")
-		parentItem.Append(childItem)
+		b.Promote()
 
-		childItem.Promote()
-
-		assertChildrenListEmpty(t, childItem)
-		assertChildrenListEmpty(t, parentItem)
-		assertChildrenOrder(t, grandparentItem, parentItem, childItem)
+		assertChildrenListEmpty(t, b)
+		assertChildrenListEmpty(t, a)
+		assertChildrenOrder(t, root, a, b)
 	})
 }
 
 func TestItemPrepend(t *testing.T) {
 	t.Run("EmptyList", func(t *testing.T) {
-		parent, a, _, _ := newTestItems()
+		w, a, _, _ := newTestItems()
+		root := w.Root()
 
-		parent.Prepend(a)
+		root.Prepend(a)
 
-		assertChildrenOrder(t, parent, a)
+		assertChildrenOrder(t, root, a)
 	})
 
 	t.Run("NonEmptyList", func(t *testing.T) {
-		parent, a, b, _ := newTestItems()
+		w, a, b, _ := newTestItems()
+		root := w.Root()
 
-		parent.Prepend(a)
-		parent.Prepend(b)
+		root.Prepend(a)
+		root.Prepend(b)
 
-		assertChildrenOrder(t, parent, b, a)
+		assertChildrenOrder(t, root, b, a)
 	})
 }
 
 func TestItemAppend(t *testing.T) {
 	t.Run("EmptyList", func(t *testing.T) {
-		parent, a, _, _ := newTestItems()
+		w, a, _, _ := newTestItems()
+		root := w.Root()
 
-		parent.Append(a)
+		root.Append(a)
 
-		assertChildrenOrder(t, parent, a)
+		assertChildrenOrder(t, root, a)
 	})
 
 	t.Run("NonEmptyList", func(t *testing.T) {
-		parent, a, b, _ := newTestItems()
+		w, a, b, _ := newTestItems()
+		root := w.Root()
 
-		parent.Append(a)
-		parent.Append(b)
+		root.Append(a)
+		root.Append(b)
 
-		assertChildrenOrder(t, parent, a, b)
+		assertChildrenOrder(t, root, a, b)
 	})
+}
+
+func TestItemDepth(t *testing.T) {
+	w, a, b, c := newTestItems()
+	root := w.Root()
+
+	root.Append(a)
+	a.Append(b)
+	b.Append(c)
+
+	assert.Equal(t, 0, root.Depth())
+	assert.Equal(t, 1, a.Depth())
+	assert.Equal(t, 2, b.Depth())
+	assert.Equal(t, 3, c.Depth())
+
+	w.SetRoot(a)
+
+	assert.Equal(t, -1, root.Depth())
+	assert.Equal(t, 0, a.Depth())
+	assert.Equal(t, 1, b.Depth())
+	assert.Equal(t, 2, c.Depth())
+
+	w.SetRoot(b)
+
+	assert.Equal(t, -1, root.Depth())
+	assert.Equal(t, -1, a.Depth())
+	assert.Equal(t, 0, b.Depth())
+	assert.Equal(t, 1, c.Depth())
+}
+
+func TestItemRealRoot(t *testing.T) {
+	w, a, b, c := newTestItems()
+	root := w.Root()
+
+	root.Append(a)
+	a.Append(b)
+	b.Append(c)
+
+	assert.Same(t, root, root.RealRoot())
+	assert.Same(t, root, a.RealRoot())
+	assert.Same(t, root, b.RealRoot())
+	assert.Same(t, root, c.RealRoot())
+
+	w.SetRoot(a)
+
+	assert.Same(t, root, root.RealRoot())
+	assert.Same(t, root, a.RealRoot())
+	assert.Same(t, root, b.RealRoot())
+	assert.Same(t, root, c.RealRoot())
+
+	w.SetRoot(b)
+
+	assert.Same(t, root, root.RealRoot())
+	assert.Same(t, root, a.RealRoot())
+	assert.Same(t, root, b.RealRoot())
+	assert.Same(t, root, c.RealRoot())
+}
+
+func TestItemSetCollapsed(t *testing.T) {
+	t.Run("SetToTrue", func(t *testing.T) {
+		t.Run("No children", func(t *testing.T) {
+			w, _, _, _ := newTestItems()
+			root := w.Root()
+
+			assert.False(t, root.Collapsed())
+
+			root.SetCollapsed(true, false)
+
+			assert.False(t, root.Collapsed())
+		})
+
+		t.Run("Non-recursive", func(t *testing.T) {
+			w, a, b, c := newTestItems()
+			root := w.Root()
+
+			root.Append(a)
+			a.Append(b)
+			b.Append(c)
+
+			root.SetCollapsed(true, false)
+
+			assert.True(t, root.Collapsed())
+			assert.False(t, a.Collapsed())
+			assert.False(t, b.Collapsed())
+			assert.False(t, c.Collapsed())
+		})
+
+		t.Run("Recursive", func(t *testing.T) {
+			w, a, b, c := newTestItems()
+			root := w.Root()
+
+			root.Append(a)
+			a.Append(b)
+			b.Append(c)
+
+			root.SetCollapsed(true, true)
+
+			assert.True(t, root.Collapsed())
+			assert.True(t, a.Collapsed())
+			assert.True(t, b.Collapsed())
+			assert.False(t, c.Collapsed())
+		})
+	})
+	t.Run("SetToFalse", func(t *testing.T) {
+		t.Run("No children", func(t *testing.T) {
+			w, _, _, _ := newTestItems()
+			root := w.Root()
+
+			assert.False(t, root.Collapsed())
+
+			root.SetCollapsed(false, false)
+
+			assert.False(t, root.Collapsed())
+		})
+
+		t.Run("Non-recursive", func(t *testing.T) {
+			w, a, b, c := newTestItems()
+			root := w.Root()
+
+			root.Append(a)
+			a.Append(b)
+			b.Append(c)
+
+			// prepare tested state
+			root.SetCollapsed(true, true)
+
+			root.SetCollapsed(false, false)
+
+			assert.False(t, root.Collapsed())
+			assert.True(t, a.Collapsed())
+			assert.True(t, b.Collapsed())
+			assert.False(t, c.Collapsed())
+		})
+
+		t.Run("Recursive", func(t *testing.T) {
+			w, a, b, c := newTestItems()
+			root := w.Root()
+
+			root.Append(a)
+			a.Append(b)
+			b.Append(c)
+
+			// prepare tested state
+			root.SetCollapsed(true, true)
+
+			root.SetCollapsed(false, true)
+
+			assert.False(t, root.Collapsed())
+			assert.False(t, a.Collapsed())
+			assert.False(t, b.Collapsed())
+			assert.False(t, c.Collapsed())
+		})
+	})
+}
+
+func TestItemDisplayChildren(t *testing.T) {
+	t.Run("EmptyParent", func(t *testing.T) {
+		w, _, _, _ := newTestItems()
+		root := w.Root()
+
+		children := root.DisplayedChildren()
+		require.Empty(t, children)
+	})
+
+	t.Run("SimpleCase", func(t *testing.T) {
+		w, a, b, c := newTestItems()
+		root := w.Root()
+
+		root.Append(a)
+		a.Append(b)
+		b.Append(c)
+
+		children := root.DisplayedChildren()
+		require.Len(t, children, 3)
+		assert.Same(t, a, children[0])
+		assert.Same(t, b, children[1])
+		assert.Same(t, c, children[2])
+	})
+
+	t.Run("CollapsedChild", func(t *testing.T) {
+		w, a, b, c := newTestItems()
+		root := w.Root()
+
+		root.Append(a)
+		a.Append(b)
+		b.Append(c)
+
+		b.SetCollapsed(true, false)
+
+		children := root.DisplayedChildren()
+		require.Len(t, children, 2)
+		assert.Same(t, a, children[0])
+		assert.Same(t, b, children[1])
+	})
+}
+
+func TestItemPrevRow(t *testing.T) {
+	t.Run("No previous sibling", func(t *testing.T) {
+		t.Run("Parent is root", func(t *testing.T) {
+			w, a, _, _ := newTestItems()
+			root := w.Root()
+
+			root.Append(a)
+
+			prevRow := a.PrevRow()
+			assert.Nil(t, prevRow)
+		})
+
+		t.Run("Parent is not root", func(t *testing.T) {
+			w, a, b, _ := newTestItems()
+
+			root := w.Root()
+
+			root.Append(a)
+			a.Append(b)
+
+			prevRow := b.PrevRow()
+			assert.Same(t, a, prevRow)
+		})
+	})
+
+	t.Run("With previous sibling", func(t *testing.T) {
+		t.Run("Previous sibling has no children", func(t *testing.T) {
+			w, a, b, _ := newTestItems()
+			root := w.Root()
+
+			root.Append(a)
+			root.Append(b)
+
+			prevRow := b.PrevRow()
+			assert.Same(t, a, prevRow)
+		})
+
+		t.Run("Previour sibling has children", func(t *testing.T) {
+			t.Run("Previous sibling is collapsed", func(t *testing.T) {
+				w, a, b, c := newTestItems()
+				root := w.Root()
+
+				root.Append(a)
+				a.Append(b)
+
+				a.SetCollapsed(true, false)
+
+				root.Append(c)
+
+				prevRow := c.PrevRow()
+				assert.Same(t, a, prevRow)
+			})
+
+			t.Run("Previous sibling is not collapsed", func(t *testing.T) {
+				w, a, b, c := newTestItems()
+				root := w.Root()
+
+				root.Append(a)
+				a.Append(b)
+
+				root.Append(c)
+
+				prevRow := c.PrevRow()
+				assert.Same(t, b, prevRow)
+			})
+		})
+	})
+}
+
+func TestItemNextRow(t *testing.T) {
+	t.Run("Item has children and is not collapsed", func(t *testing.T) {
+		w, a, b, _ := newTestItems()
+		root := w.Root()
+
+		root.Append(a)
+		a.Append(b)
+
+		nextRow := a.NextRow()
+		assert.Same(t, b, nextRow)
+	})
+
+	t.Run("Item has next sibling", func(t *testing.T) {
+		w, a, b, _ := newTestItems()
+		root := w.Root()
+
+		root.Append(a)
+		root.Append(b)
+
+		nextRow := a.NextRow()
+		assert.Same(t, b, nextRow)
+	})
+
+	t.Run("Item's parent has next sibling", func(t *testing.T) {
+		w, a, b, c := newTestItems()
+		root := w.Root()
+
+		root.Append(a)
+		a.Append(b)
+		root.Append(c)
+
+		nextRow := b.NextRow()
+		assert.Same(t, c, nextRow)
+	})
+
+	t.Run("No next row", func(t *testing.T) {
+		w, a, _, _ := newTestItems()
+		root := w.Root()
+
+		root.Append(a)
+
+		nextRow := a.NextRow()
+		assert.Nil(t, nextRow)
+	})
+}
+
+func newTestItems() (*data.Workspace, *data.Item, *data.Item, *data.Item) {
+	w := data.NewWorkspace("", "Parent")
+
+	a := w.NewItem("ChildA")
+	b := w.NewItem("ChildB")
+	c := w.NewItem("ChildC")
+
+	return w, a, b, c
 }
 
 func assertChildrenOrder(t *testing.T, parent *data.Item, children ...*data.Item) {
@@ -278,15 +617,6 @@ func assertChildrenListEmpty(t *testing.T, i *data.Item) {
 
 	assert.Nil(t, i.Head())
 	assert.Nil(t, i.Tail())
-}
-
-func newTestItems() (*data.Item, *data.Item, *data.Item, *data.Item) {
-	w := data.NewWorkspace("", "Parent")
-	a := w.NewItem("ChildA")
-	b := w.NewItem("ChildB")
-	c := w.NewItem("ChildC")
-
-	return w.Root(), a, b, c
 }
 
 func assertItemDetached(t *testing.T, item *data.Item) {

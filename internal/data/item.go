@@ -113,7 +113,7 @@ func (i *Item) Prepend(item *Item) {
 	i.tail = item
 }
 
-// Prepend places the provided item in the tail position
+// Append places the provided item in the tail position
 // of the visitor's children list.
 func (i *Item) Append(item *Item) {
 	if i.tail != nil {
@@ -238,12 +238,25 @@ func (i *Item) Collapsed() bool {
 }
 
 // Depth returns the tree depth of the item relative to the
-// workspace root.
+// workspace root. If the item is not in the workspace root,
+// -1 is returned.
 func (i *Item) Depth() int {
 	depth := 0
-	for p := i.parent; p != i.workspace.root; p = p.parent {
+
+	for {
+		if i == i.workspace.root {
+			break
+		}
+
+		if i.parent == nil {
+			return -1
+		}
+
 		depth++
+
+		i = i.parent
 	}
+
 	return depth
 }
 
