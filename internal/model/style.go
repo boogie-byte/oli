@@ -41,11 +41,33 @@ var (
 			Foreground(grey).
 			Strikethrough(true)
 
-	styleBullet = lipgloss.NewStyle().
-			Foreground(cyan).
-			Padding(0, 1)
-
 	styleStatusline = lipgloss.NewStyle().
 			Reverse(true).
 			Padding(0, 1)
+
+	styleBullet = []lipgloss.Style{
+		lipgloss.NewStyle().
+			Foreground(yellow).
+			Padding(0, 1),
+
+		lipgloss.NewStyle().
+			Foreground(green).
+			Padding(0, 1),
+
+		lipgloss.NewStyle().
+			Foreground(cyan).
+			Padding(0, 1),
+
+		lipgloss.NewStyle().
+			Foreground(blue).
+			Padding(0, 1),
+
+		lipgloss.NewStyle().
+			Foreground(magenta).
+			Padding(0, 1),
+
+		lipgloss.NewStyle().
+			Foreground(red).
+			Padding(0, 1),
+	}
 )

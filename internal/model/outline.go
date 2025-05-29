@@ -480,7 +480,7 @@ func (m *Outline) renderItems() string {
 		}
 
 		bullet := getBullet(item)
-		bullet = styleBullet.Render(bullet)
+		bullet = styleBullet[(item.Depth()-1)%len(styleBullet)].Render(bullet)
 
 		itemRow := lipgloss.JoinHorizontal(lipgloss.Top, bullet, title)
 		itemRow = lipgloss.PlaceHorizontal(
