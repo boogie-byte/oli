@@ -37,13 +37,38 @@ var (
 	styleBreadcrumbHighlited = lipgloss.NewStyle().
 					Foreground(magenta)
 
-	styleItemDone = lipgloss.NewStyle().
-			Foreground(grey).
-			Strikethrough(true)
+	styleItemNormal = lipgloss.NewStyle()
 
-	styleStatusline = lipgloss.NewStyle().
-			Reverse(true).
-			Padding(0, 1)
+	styleItemComplete = lipgloss.NewStyle().
+				Foreground(grey)
+
+	styleStatusLineError = lipgloss.NewStyle().
+				Background(red).
+				Foreground(white).
+				Padding(0, 1)
+
+	styleStatusLineMessage = lipgloss.NewStyle().
+				Background(blue).
+				Foreground(white).
+				Padding(0, 1)
+
+	styleStatusLineHint = lipgloss.NewStyle().
+				Reverse(true).
+				Padding(0, 1)
+
+	styleItemStatus = []lipgloss.Style{
+		lipgloss.NewStyle().PaddingRight(1), // NONE
+
+		lipgloss.NewStyle().PaddingRight(1).Foreground(red), // TODO
+
+		lipgloss.NewStyle().PaddingRight(1).Foreground(green), // DONE
+
+		lipgloss.NewStyle().PaddingRight(1).Foreground(blue), // CANC
+
+		lipgloss.NewStyle().PaddingRight(1).Foreground(cyan), // WAIT
+
+		lipgloss.NewStyle().PaddingRight(1).Foreground(magenta), // SCHD
+	}
 
 	styleBullet = []lipgloss.Style{
 		lipgloss.NewStyle().

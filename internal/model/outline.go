@@ -15,9 +15,6 @@
 package model
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -35,30 +32,21 @@ const (
 	prefixWitdh = 3
 )
 
-var (
-	statusLineResetTimeout = 3 * time.Second
-)
-
-type statusLineResetMessage struct{}
-
-func tickStatusLineReset() tea.Cmd {
-	return tea.Tick(statusLineResetTimeout, func(_ time.Time) tea.Msg {
-		return statusLineResetMessage{}
-	})
-}
-
 type Outline struct {
 	workspace *data.Workspace
 
 	windowWidth  int
 	windowHeight int
 
-	commandMode bool
-	textInput   textinput.Model
+	textInput textinput.Model
 
-	errorMessage   string
-	successMessage string
-	infoMessage    string
+	commandMode    commandMode
+	fileMode       fileMode
+	zoomMode       zoomMode
+	itemMode       itemMode
+	itemStatusMode itemStatusMode
+
+	statusLine string
 }
 
 func NewOutline(workspace *data.Workspace) (*Outline, error) {
@@ -70,6 +58,12 @@ func NewOutline(workspace *data.Workspace) (*Outline, error) {
 	m.textInput.SetValue(workspace.Cursor().Title())
 	m.textInput.Prompt = ""
 	m.textInput.Focus()
+
+	m.commandMode = commandMode{m}
+	m.fileMode = fileMode{m}
+	m.zoomMode = zoomMode{m}
+	m.itemMode = itemMode{m}
+	m.itemStatusMode = itemStatusMode{m}
 
 	return m, nil
 }
@@ -89,6 +83,23 @@ func getBullet(item *data.Item) string {
 	}
 }
 
+func getStatus(item *data.Item) string {
+	if s := item.Status(); s != data.StatusNone {
+		return styleItemStatus[s].Render(s.String())
+	}
+
+	return ""
+}
+
+func getItemStyle(item *data.Item) lipgloss.Style {
+	switch item.Status() {
+	case data.StatusDone, data.StatusCancelled:
+		return styleItemComplete
+	default:
+		return styleItemNormal
+	}
+}
+
 func (m *Outline) getMaxTitleWidth(padding int) int {
 	return m.windowWidth - padding - prefixWitdh
 }
@@ -100,24 +111,6 @@ func (m *Outline) breadcrumbs() string {
 	}
 
 	return breadcrumbs
-}
-
-func (m *Outline) statusLine() string {
-	switch {
-	case m.errorMessage != "":
-		return m.errorMessage
-	case m.successMessage != "":
-		return m.successMessage
-	case m.infoMessage != "":
-		return m.infoMessage
-	default:
-		return fmt.Sprintf(
-			"%p <- %p -> %p",
-			m.workspace.Cursor().Prev(),
-			m.workspace.Cursor(),
-			m.workspace.Cursor().Next(),
-		)
-	}
 }
 
 // Movement
@@ -243,7 +236,11 @@ func (m *Outline) toggleBranchCollapsed() (tea.Model, tea.Cmd) {
 
 func (m *Outline) toggleRowDone() (tea.Model, tea.Cmd) {
 	cur := m.workspace.Cursor()
-	cur.ToggleDone()
+	if cur.Status() == data.StatusDone {
+		cur.SetStatus(data.StatusNone)
+	} else {
+		cur.SetStatus(data.StatusDone)
+	}
 
 	return m.moveCursor(cur.Next(), -1)
 }
@@ -328,52 +325,27 @@ func (m *Outline) addRow() (tea.Model, tea.Cmd) {
 	return m.moveCursor(next, -1)
 }
 
-func (m *Outline) save(quitAfterSave bool) (tea.Model, tea.Cmd) {
+func (m *Outline) save() (tea.Model, tea.Cmd) {
 	m.saveCurrentTitle()
 
 	err := m.workspace.Save()
 	if err != nil {
-		m.errorMessage = err.Error()
-	} else if quitAfterSave {
-		return m, tea.Quit
+		m.statusLine = styleStatusLineError.Render(err.Error())
 	} else {
-		m.successMessage = "Saved!"
+		m.statusLine = styleStatusLineMessage.Render("Saved!")
 	}
-	return m, tickStatusLineReset()
+
+	return m, nil
 }
 
 func (m *Outline) resetStatusLineMessage() (tea.Model, tea.Cmd) {
-	m.errorMessage = ""
-	m.successMessage = ""
-	m.infoMessage = ""
+	m.statusLine = ""
 	return m, nil
 }
 
-func (m *Outline) enterCommandMode() (tea.Model, tea.Cmd) {
-	m.commandMode = true
-	return m, nil
-}
-
-func (m *Outline) command(s string) (tea.Model, tea.Cmd) {
-	m.commandMode = false
-
-	switch s {
-	// Misc
-	case "q":
-		return m.save(true)
-	case "s":
-		return m.save(false)
-	// Zoom
-	case "i":
-		return m.zoomIn()
-	case "o":
-		return m.zoomOut()
-	// Adding and modifying
-	case "x":
-		return m.toggleRowDone()
-	}
-
-	return m, nil
+func (m *Outline) updateWindowSize(msg tea.WindowSizeMsg) {
+	m.windowWidth = msg.Width
+	m.windowHeight = msg.Height
 }
 
 func (m *Outline) Init() tea.Cmd {
@@ -383,16 +355,26 @@ func (m *Outline) Init() tea.Cmd {
 func (m *Outline) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := message.(type) {
 	case tea.WindowSizeMsg:
-		m.windowWidth = msg.Width
-		m.windowHeight = msg.Height
-	case tea.KeyMsg:
-		if m.commandMode {
-			return m.command(msg.String())
-		}
+		m.updateWindowSize(msg)
 
+	case tea.KeyMsg:
 		switch msg.Type {
+		case tea.KeyCtrlQ:
+			return m, tea.Quit
+		case tea.KeyCtrlF:
+			m.statusLine = m.fileMode.statusLine()
+			return m.fileMode, nil
 		case tea.KeyCtrlX:
-			return m.enterCommandMode()
+			m.statusLine = m.commandMode.statusLine()
+			return m.commandMode, nil
+		case tea.KeyCtrlZ:
+			m.statusLine = m.zoomMode.statusLine()
+			return m.zoomMode, nil
+		case tea.KeyCtrlT:
+			m.statusLine = m.itemMode.statusLine()
+			return m.itemMode, nil
+		case tea.KeyEsc:
+			return m.resetStatusLineMessage()
 		case tea.KeyUp:
 			return m.cursorUp(-1)
 		case tea.KeyDown:
@@ -424,8 +406,6 @@ func (m *Outline) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			return m.updateRow(message)
 		}
-	case statusLineResetMessage:
-		return m.resetStatusLineMessage()
 	}
 
 	return m, nil
@@ -462,27 +442,22 @@ func (m *Outline) renderItems() string {
 
 		var title string
 		if m.workspace.Cursor() == item {
-			if item.Done() {
-				m.textInput.TextStyle = styleItemDone
-			} else {
-				m.textInput.TextStyle = lipgloss.NewStyle()
-			}
+			m.textInput.TextStyle = getItemStyle(item)
 			title = m.textInput.View()
 		} else {
 			title = item.Title()
 
 			maxTitleWidth := m.getMaxTitleWidth(padding)
 			title = runewidth.Truncate(title, maxTitleWidth, "...")
-
-			if item.Done() {
-				title = styleItemDone.Render(title)
-			}
+			title = getItemStyle(item).Render(title)
 		}
 
 		bullet := getBullet(item)
 		bullet = styleBullet[(item.Depth()-1)%len(styleBullet)].Render(bullet)
 
-		itemRow := lipgloss.JoinHorizontal(lipgloss.Top, bullet, title)
+		status := getStatus(item)
+
+		itemRow := lipgloss.JoinHorizontal(lipgloss.Top, bullet, status, title)
 		itemRow = lipgloss.PlaceHorizontal(
 			m.windowWidth-padding,
 			lipgloss.Left,
@@ -503,9 +478,7 @@ func (m *Outline) renderItems() string {
 }
 
 func (m *Outline) renderStatusLine() string {
-	return styleStatusline.
-		Width(m.windowWidth).
-		Render(m.statusLine())
+	return lipgloss.PlaceHorizontal(m.windowWidth, lipgloss.Top, m.statusLine)
 }
 
 func (m *Outline) View() string {
@@ -520,4 +493,164 @@ func (m *Outline) View() string {
 		m.renderItems(),
 		m.renderStatusLine(),
 	)
+}
+
+type commandMode struct {
+	*Outline
+}
+
+func (commandMode) statusLine() string {
+	return "command: [x]Toggle done"
+}
+
+func (m commandMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := message.(type) {
+	case tea.WindowSizeMsg:
+		m.updateWindowSize(msg)
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			m.Outline.statusLine = ""
+			return m.Outline, nil
+		case "x":
+			m.Outline.statusLine = ""
+			m.toggleRowDone()
+		default:
+			return m, nil
+		}
+
+	}
+
+	return m.Outline, nil
+}
+
+type fileMode struct {
+	*Outline
+}
+
+func (fileMode) statusLine() string {
+	return "file: [s]ave"
+}
+
+func (m fileMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := message.(type) {
+	case tea.WindowSizeMsg:
+		m.updateWindowSize(msg)
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			m.Outline.statusLine = ""
+			return m.Outline, nil
+		case "s":
+			m.Outline.statusLine = ""
+			m.save()
+		default:
+			return m, nil
+		}
+
+	}
+
+	return m.Outline, nil
+}
+
+type zoomMode struct {
+	*Outline
+}
+
+func (zoomMode) statusLine() string {
+	return "zoom: [i]in [o]ut"
+}
+
+func (m zoomMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := message.(type) {
+	case tea.WindowSizeMsg:
+		m.updateWindowSize(msg)
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			m.Outline.statusLine = ""
+			return m.Outline, nil
+		case "i":
+			m.Outline.statusLine = ""
+			m.zoomIn()
+		case "o":
+			m.Outline.statusLine = ""
+			m.zoomOut()
+		default:
+			return m, nil
+		}
+	}
+
+	return m.Outline, nil
+}
+
+type itemMode struct {
+	*Outline
+}
+
+func (itemMode) statusLine() string {
+	return "item: [s]tatus"
+}
+
+func (m itemMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := message.(type) {
+	case tea.WindowSizeMsg:
+		m.updateWindowSize(msg)
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			m.Outline.statusLine = ""
+			return m.Outline, nil
+		case "s":
+			m.Outline.statusLine = m.Outline.itemStatusMode.statusLine()
+			return m.Outline.itemStatusMode, nil
+		default:
+			return m, nil
+		}
+	}
+
+	return m.Outline, nil
+}
+
+type itemStatusMode struct {
+	*Outline
+}
+
+func (itemStatusMode) statusLine() string {
+	return "item status: [n]one [t]odo [d]one [c]canceled [w]aiting [s]cheduled"
+}
+
+func (m itemStatusMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := message.(type) {
+	case tea.WindowSizeMsg:
+		m.updateWindowSize(msg)
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			m.Outline.statusLine = ""
+			return m.Outline, nil
+		case "n":
+			m.Outline.statusLine = ""
+			m.Outline.workspace.Cursor().SetStatus(data.StatusNone)
+		case "t":
+			m.Outline.statusLine = ""
+			m.Outline.workspace.Cursor().SetStatus(data.StatusTodo)
+		case "d":
+			m.Outline.statusLine = ""
+			m.Outline.workspace.Cursor().SetStatus(data.StatusDone)
+		case "c":
+			m.Outline.statusLine = ""
+			m.Outline.workspace.Cursor().SetStatus(data.StatusCancelled)
+		case "w":
+			m.Outline.statusLine = ""
+			m.Outline.workspace.Cursor().SetStatus(data.StatusWaiting)
+		case "s":
+			m.Outline.statusLine = ""
+			m.Outline.workspace.Cursor().SetStatus(data.StatusScheduled)
+		default:
+			return m, nil
+		}
+	}
+
+	return m.Outline, nil
 }

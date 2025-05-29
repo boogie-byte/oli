@@ -29,7 +29,7 @@ const (
 	storageVersion    = 2
 
 	xmlElemItem             = "item"
-	xmlItemAttrDone         = "done"
+	xmlItemAttrStatus       = "status"
 	xmlItemAttrCollapsed    = "collapsed"
 	xmlItemAttrSelected     = "selected"
 	xmlItemAttrZoomedIn     = "zoomed-in"

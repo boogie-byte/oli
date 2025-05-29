@@ -41,7 +41,7 @@ type Item struct {
 
 	// data fields
 	title     string
-	done      bool
+	status    Status
 	collapsed bool
 }
 
@@ -227,12 +227,12 @@ func (i *Item) Title() string {
 	return i.title
 }
 
-// Title returns the item "done" flag value.
-func (i *Item) Done() bool {
-	return i.done
+// Status returns the item status.
+func (i *Item) Status() Status {
+	return i.status
 }
 
-// Title returns the item "collapsed" flag value.
+// Collapsed returns the item "collapsed" flag value.
 func (i *Item) Collapsed() bool {
 	return i.collapsed
 }
@@ -300,10 +300,10 @@ func (i *Item) SetTitle(val string) {
 	i.title = val
 }
 
-// ToggleDone toggles the item "done" flag value and marks the
+// SetStatus toggles the item "done" flag value and marks the
 // item as dirty.
-func (i *Item) ToggleDone() {
-	i.done = !i.done
+func (i *Item) SetStatus(s Status) {
+	i.status = s
 }
 
 // SetCollapsed set the item "collapsed" flag value. If recursive is true
@@ -333,8 +333,11 @@ func newTrueAttr(name string) xml.Attr {
 func (i *Item) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	start.Name.Local = xmlElemItem
 
-	if i.done {
-		start.Attr = append(start.Attr, newTrueAttr(xmlItemAttrDone))
+	if i.status != StatusNone {
+		start.Attr = append(start.Attr, xml.Attr{
+			Name:  xml.Name{Local: xmlItemAttrStatus},
+			Value: i.status.String(),
+		})
 	}
 
 	if i.collapsed {
@@ -368,8 +371,12 @@ func (i *Item) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 
 func (i *Item) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	for _, attr := range start.Attr {
-		if attr.Name.Local == xmlItemAttrDone {
-			i.done = true
+		if attr.Name.Local == xmlItemAttrStatus {
+			var err error
+			i.status, err = ParseStatus(attr.Value)
+			if err != nil {
+				return err
+			}
 		}
 
 		if attr.Name.Local == xmlItemAttrCollapsed {
