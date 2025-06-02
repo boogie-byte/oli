@@ -292,6 +292,10 @@ func (m *Outline) addSibling() (tea.Model, tea.Cmd) {
 	cur := m.workspace.Cursor()
 	next := m.workspace.NewItem("")
 
+	if cur.Status() != data.StatusNone {
+		next.SetStatus(data.StatusTodo)
+	}
+
 	next.MoveBelow(cur)
 
 	return m.moveCursor(next)
@@ -300,6 +304,11 @@ func (m *Outline) addSibling() (tea.Model, tea.Cmd) {
 func (m *Outline) addChild() (tea.Model, tea.Cmd) {
 	cur := m.workspace.Cursor()
 	next := m.workspace.NewItem("")
+	tail := cur.Tail()
+
+	if tail != nil && tail.Status() != data.StatusNone {
+		next.SetStatus(data.StatusTodo)
+	}
 
 	cur.SetCollapsed(false, false)
 	cur.Append(next)
