@@ -160,8 +160,11 @@ func (m *Outline) cursorToParent() (tea.Model, tea.Cmd) {
 }
 
 func (m *Outline) cursorToTail() (tea.Model, tea.Cmd) {
-	tail := m.workspace.Cursor().Tail()
+	cur := m.workspace.Cursor()
+
+	tail := cur.Tail()
 	if tail != nil {
+		cur.SetCollapsed(false, false)
 		return m.moveCursor(tail)
 	}
 
@@ -288,6 +291,7 @@ func (m *Outline) deleteItem(recursive bool) (tea.Model, tea.Cmd) {
 func (m *Outline) addSibling() (tea.Model, tea.Cmd) {
 	cur := m.workspace.Cursor()
 	next := m.workspace.NewItem("")
+
 	next.MoveBelow(cur)
 
 	return m.moveCursor(next)
@@ -296,6 +300,8 @@ func (m *Outline) addSibling() (tea.Model, tea.Cmd) {
 func (m *Outline) addChild() (tea.Model, tea.Cmd) {
 	cur := m.workspace.Cursor()
 	next := m.workspace.NewItem("")
+
+	cur.SetCollapsed(false, false)
 	cur.Append(next)
 
 	return m.moveCursor(next)
