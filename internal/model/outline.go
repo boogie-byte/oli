@@ -41,8 +41,6 @@ type Outline struct {
 	textInput textinput.Model
 
 	commandMode    commandMode
-	fileMode       fileMode
-	zoomMode       zoomMode
 	itemMode       itemMode
 	itemStatusMode itemStatusMode
 
@@ -60,8 +58,6 @@ func NewOutline(workspace *data.Workspace) (*Outline, error) {
 	m.textInput.Focus()
 
 	m.commandMode = commandMode{m}
-	m.fileMode = fileMode{m}
-	m.zoomMode = zoomMode{m}
 	m.itemMode = itemMode{m}
 	m.itemStatusMode = itemStatusMode{m}
 
@@ -130,42 +126,46 @@ func (m *Outline) updateTextInput(n *data.Item) {
 	m.textInput.SetValue(n.Title())
 }
 
-func (m *Outline) moveCursor(item *data.Item, pos int) (tea.Model, tea.Cmd) {
+func (m *Outline) moveCursor(item *data.Item) (tea.Model, tea.Cmd) {
 	if item == nil {
 		return m, nil
 	}
 
 	m.saveCurrentTitle()
 	m.updateTextInput(item)
-	if pos < 0 {
-		m.textInput.CursorEnd()
-	} else {
-		m.textInput.SetCursor(pos)
-	}
+	m.textInput.CursorEnd()
 
 	m.workspace.SetCursor(item)
 
 	return m, nil
 }
 
-func (m *Outline) cursorUp(pos int) (tea.Model, tea.Cmd) {
+func (m *Outline) cursorUp() (tea.Model, tea.Cmd) {
 	item := m.workspace.Cursor().PrevRow()
-	return m.moveCursor(item, pos)
+	return m.moveCursor(item)
 }
 
-func (m *Outline) cursorDown(pos int) (tea.Model, tea.Cmd) {
+func (m *Outline) cursorDown() (tea.Model, tea.Cmd) {
 	item := m.workspace.Cursor().NextRow()
-	return m.moveCursor(item, pos)
+	return m.moveCursor(item)
 }
 
-func (m *Outline) cursorHead() (tea.Model, tea.Cmd) {
-	item := m.workspace.Cursor().Parent().Head()
-	return m.moveCursor(item, -1)
+func (m *Outline) cursorToParent() (tea.Model, tea.Cmd) {
+	parent := m.workspace.Cursor().Parent()
+	if parent != m.workspace.Root() {
+		return m.moveCursor(parent)
+	}
+
+	return m, nil
 }
 
-func (m *Outline) cursorTail() (tea.Model, tea.Cmd) {
-	item := m.workspace.Cursor().Parent().Tail()
-	return m.moveCursor(item, -1)
+func (m *Outline) cursorToTail() (tea.Model, tea.Cmd) {
+	tail := m.workspace.Cursor().Tail()
+	if tail != nil {
+		return m.moveCursor(tail)
+	}
+
+	return m, nil
 }
 
 func (m *Outline) zoomIn() (tea.Model, tea.Cmd) {
@@ -175,7 +175,7 @@ func (m *Outline) zoomIn() (tea.Model, tea.Cmd) {
 	}
 
 	m.workspace.SetRoot(cur)
-	m.moveCursor(cur.Head(), -1)
+	m.moveCursor(cur.Head())
 
 	return m, nil
 }
@@ -189,7 +189,7 @@ func (m *Outline) zoomOut() (tea.Model, tea.Cmd) {
 	m.workspace.SetRoot(root.Parent())
 
 	if root.Collapsed() {
-		m.moveCursor(root, -1)
+		m.moveCursor(root)
 	}
 
 	return m, nil
@@ -209,21 +209,7 @@ func (m *Outline) moveRowDown() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *Outline) moveRowToHead() (tea.Model, tea.Cmd) {
-	cur := m.workspace.Cursor()
-	cur.Parent().Prepend(cur)
-
-	return m, nil
-}
-
-func (m *Outline) moveRowToTail() (tea.Model, tea.Cmd) {
-	cur := m.workspace.Cursor()
-	cur.Parent().Append(cur)
-
-	return m, nil
-}
-
-func (m *Outline) toggleRowCollapsed(recursive bool) (tea.Model, tea.Cmd) {
+func (m *Outline) toggleItemFolded(recursive bool) (tea.Model, tea.Cmd) {
 	collapsed := m.workspace.Cursor().Collapsed()
 	m.workspace.Cursor().SetCollapsed(!collapsed, recursive)
 
@@ -242,7 +228,7 @@ func (m *Outline) toggleRowDone() (tea.Model, tea.Cmd) {
 		cur.SetStatus(data.StatusDone)
 	}
 
-	return m.moveCursor(cur.Next(), -1)
+	return m.moveCursor(cur.Next())
 }
 
 func (m *Outline) demoteRow() (tea.Model, tea.Cmd) {
@@ -273,56 +259,46 @@ func (m *Outline) updateRow(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *Outline) deleteEmptyRow(message tea.Msg) (tea.Model, tea.Cmd) {
-	if m.textInput.Position() != 0 {
-		return m.updateRow(message)
+func (m *Outline) deleteItem(recursive bool) (tea.Model, tea.Cmd) {
+	cur := m.workspace.Cursor()
+
+	nextSelected := cur.Next()
+	if nextSelected == nil {
+		nextSelected = cur.Prev()
 	}
 
-	prevRow := m.workspace.Cursor().PrevRow()
-	if prevRow == nil {
+	if nextSelected == nil {
+		nextSelected = cur.Parent()
+	}
+
+	if nextSelected == m.workspace.Root() {
 		return m, nil
 	}
 
-	prevRowPos := len(prevRow.Title())
-
-	if v := m.textInput.Value(); v != "" {
-		prevRow.SetTitle(prevRow.Title() + v)
+	if cur.Head() != nil && !recursive {
+		m.statusLine = styleStatusLineError.Render("Item has children, use C-c D for recursive deletion")
+		return m, nil
 	}
-
-	// promote children if they could
-	// be attached to previous row
-	cur := m.workspace.Cursor()
-	for c := cur.Head(); c != nil; c = c.Next() {
-		prevRow.Append(c)
-	}
-
-	model, cmd := m.moveCursor(prevRow, prevRowPos)
 
 	cur.Detach()
 
-	return model, cmd
+	return m.moveCursor(nextSelected)
 }
 
-func (m *Outline) addRow() (tea.Model, tea.Cmd) {
+func (m *Outline) addSibling() (tea.Model, tea.Cmd) {
 	cur := m.workspace.Cursor()
-	val := m.textInput.Value()
-
-	if val == "" {
-		if cur.Depth() > 1 {
-			cur.MoveBelow(cur.Parent())
-		}
-		return m, nil
-	}
-
-	pos := m.textInput.Position()
-
-	cur.SetTitle(val[:pos])
-	m.updateTextInput(cur)
-
-	next := m.workspace.NewItem(val[pos:])
+	next := m.workspace.NewItem("")
 	next.MoveBelow(cur)
 
-	return m.moveCursor(next, -1)
+	return m.moveCursor(next)
+}
+
+func (m *Outline) addChild() (tea.Model, tea.Cmd) {
+	cur := m.workspace.Cursor()
+	next := m.workspace.NewItem("")
+	cur.Append(next)
+
+	return m.moveCursor(next)
 }
 
 func (m *Outline) save() (tea.Model, tea.Cmd) {
@@ -359,50 +335,34 @@ func (m *Outline) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyCtrlQ:
-			return m, tea.Quit
-		case tea.KeyCtrlF:
-			m.statusLine = m.fileMode.statusLine()
-			return m.fileMode, nil
 		case tea.KeyCtrlX:
 			m.statusLine = m.commandMode.statusLine()
 			return m.commandMode, nil
-		case tea.KeyCtrlZ:
-			m.statusLine = m.zoomMode.statusLine()
-			return m.zoomMode, nil
-		case tea.KeyCtrlT:
+		case tea.KeyCtrlC:
 			m.statusLine = m.itemMode.statusLine()
 			return m.itemMode, nil
 		case tea.KeyEsc:
 			return m.resetStatusLineMessage()
-		case tea.KeyUp:
-			return m.cursorUp(-1)
-		case tea.KeyDown:
-			return m.cursorDown(-1)
-		case tea.KeyShiftUp:
-			return m.cursorHead()
-		case tea.KeyShiftDown:
-			return m.cursorTail()
 		case tea.KeyCtrlUp:
-			return m.moveRowUp()
+			return m.cursorUp()
 		case tea.KeyCtrlDown:
-			return m.moveRowDown()
-		case tea.KeyCtrlShiftUp:
-			return m.moveRowToHead()
-		case tea.KeyCtrlShiftDown:
-			return m.moveRowToTail()
-		case tea.KeyCtrlRight:
-			return m.demoteRow()
+			return m.cursorDown()
 		case tea.KeyCtrlLeft:
+			return m.cursorToParent()
+		case tea.KeyCtrlRight:
+			return m.cursorToTail()
+		case tea.KeyCtrlShiftUp:
+			return m.moveRowUp()
+		case tea.KeyCtrlShiftDown:
+			return m.moveRowDown()
+		case tea.KeyCtrlShiftRight:
+			return m.demoteRow()
+		case tea.KeyCtrlShiftLeft:
 			return m.promoteRow()
-		case tea.KeyBackspace:
-			return m.deleteEmptyRow(message)
-		case tea.KeyEnter:
-			return m.addRow()
 		case tea.KeyTab:
-			return m.toggleRowCollapsed(false)
+			return m.addSibling()
 		case tea.KeyShiftTab:
-			return m.toggleRowCollapsed(true)
+			return m.addChild()
 		default:
 			return m.updateRow(message)
 		}
@@ -500,7 +460,7 @@ type commandMode struct {
 }
 
 func (commandMode) statusLine() string {
-	return "command: [x]Toggle done"
+	return "command: [q]uit without saving  [s]ave file"
 }
 
 func (m commandMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
@@ -512,70 +472,12 @@ func (m commandMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc":
 			m.Outline.statusLine = ""
 			return m.Outline, nil
-		case "x":
+		case "q":
 			m.Outline.statusLine = ""
-			m.toggleRowDone()
-		default:
-			return m, nil
-		}
-
-	}
-
-	return m.Outline, nil
-}
-
-type fileMode struct {
-	*Outline
-}
-
-func (fileMode) statusLine() string {
-	return "file: [s]ave"
-}
-
-func (m fileMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := message.(type) {
-	case tea.WindowSizeMsg:
-		m.updateWindowSize(msg)
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
-			m.Outline.statusLine = ""
-			return m.Outline, nil
+			return m.Outline, tea.Quit
 		case "s":
 			m.Outline.statusLine = ""
 			m.save()
-		default:
-			return m, nil
-		}
-
-	}
-
-	return m.Outline, nil
-}
-
-type zoomMode struct {
-	*Outline
-}
-
-func (zoomMode) statusLine() string {
-	return "zoom: [i]in [o]ut"
-}
-
-func (m zoomMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := message.(type) {
-	case tea.WindowSizeMsg:
-		m.updateWindowSize(msg)
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
-			m.Outline.statusLine = ""
-			return m.Outline, nil
-		case "i":
-			m.Outline.statusLine = ""
-			m.zoomIn()
-		case "o":
-			m.Outline.statusLine = ""
-			m.zoomOut()
 		default:
 			return m, nil
 		}
@@ -589,7 +491,7 @@ type itemMode struct {
 }
 
 func (itemMode) statusLine() string {
-	return "item: [s]tatus"
+	return "item: [d]elete  [D]elete recursive  [f]old  [F]old recursive  change [s]tatus  [z]oom in  [Z]oom out"
 }
 
 func (m itemMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
@@ -601,9 +503,23 @@ func (m itemMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc":
 			m.Outline.statusLine = ""
 			return m.Outline, nil
+		case "d":
+			return m.deleteItem(false)
+		case "D":
+			return m.deleteItem(true)
+		case "f":
+			return m.toggleItemFolded(false)
+		case "F":
+			return m.toggleItemFolded(true)
 		case "s":
 			m.Outline.statusLine = m.Outline.itemStatusMode.statusLine()
 			return m.Outline.itemStatusMode, nil
+		case "z":
+			m.Outline.statusLine = ""
+			m.zoomIn()
+		case "Z":
+			m.Outline.statusLine = ""
+			m.zoomOut()
 		default:
 			return m, nil
 		}
@@ -617,7 +533,7 @@ type itemStatusMode struct {
 }
 
 func (itemStatusMode) statusLine() string {
-	return "item status: [n]one [t]odo [d]one [c]canceled [w]aiting [s]cheduled"
+	return "item status: [n]one  [t]odo  [d]one  [c]canceled  [w]aiting  [s]cheduled"
 }
 
 func (m itemStatusMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
