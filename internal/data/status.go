@@ -20,9 +20,9 @@ type Status int
 
 const (
 	StatusNone Status = iota
-	StatusTodo
+	StatusToDo
 	StatusDone
-	StatusCancelled
+	StatusCanceled
 	StatusWaiting
 	StatusScheduled
 )
@@ -34,9 +34,9 @@ func ParseStatus(s string) (Status, error) {
 	case "DONE":
 		return StatusDone, nil
 	case "CANC":
-		return StatusCancelled, nil
+		return StatusCanceled, nil
 	case "TODO":
-		return StatusTodo, nil
+		return StatusToDo, nil
 	case "WAIT":
 		return StatusWaiting, nil
 	case "SCHD":
@@ -52,9 +52,9 @@ func (s Status) String() string {
 		return "NONE"
 	case StatusDone:
 		return "DONE"
-	case StatusCancelled:
+	case StatusCanceled:
 		return "CANC"
-	case StatusTodo:
+	case StatusToDo:
 		return "TODO"
 	case StatusWaiting:
 		return "WAIT"

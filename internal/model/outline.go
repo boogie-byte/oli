@@ -89,7 +89,7 @@ func getStatus(item *data.Item) string {
 
 func getItemStyle(item *data.Item) lipgloss.Style {
 	switch item.Status() {
-	case data.StatusDone, data.StatusCancelled:
+	case data.StatusDone, data.StatusCanceled:
 		return styleItemComplete
 	default:
 		return styleItemNormal
@@ -293,7 +293,7 @@ func (m *Outline) addSibling() (tea.Model, tea.Cmd) {
 	next := m.workspace.NewItem("")
 
 	if cur.Status() != data.StatusNone {
-		next.SetStatus(data.StatusTodo)
+		next.SetStatus(data.StatusToDo)
 	}
 
 	next.MoveBelow(cur)
@@ -307,7 +307,7 @@ func (m *Outline) addChild() (tea.Model, tea.Cmd) {
 	tail := cur.Tail()
 
 	if tail != nil && tail.Status() != data.StatusNone {
-		next.SetStatus(data.StatusTodo)
+		next.SetStatus(data.StatusToDo)
 	}
 
 	cur.SetCollapsed(false, false)
@@ -565,13 +565,13 @@ func (m itemStatusMode) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.Outline.workspace.Cursor().SetStatus(data.StatusNone)
 		case "t":
 			m.Outline.statusLine = ""
-			m.Outline.workspace.Cursor().SetStatus(data.StatusTodo)
+			m.Outline.workspace.Cursor().SetStatus(data.StatusToDo)
 		case "d":
 			m.Outline.statusLine = ""
 			m.Outline.workspace.Cursor().SetStatus(data.StatusDone)
 		case "c":
 			m.Outline.statusLine = ""
-			m.Outline.workspace.Cursor().SetStatus(data.StatusCancelled)
+			m.Outline.workspace.Cursor().SetStatus(data.StatusCanceled)
 		case "w":
 			m.Outline.statusLine = ""
 			m.Outline.workspace.Cursor().SetStatus(data.StatusWaiting)
