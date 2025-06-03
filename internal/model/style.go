@@ -42,6 +42,10 @@ var (
 	styleItemComplete = lipgloss.NewStyle().
 				Foreground(grey)
 
+	styleTodoStats = lipgloss.NewStyle().
+			PaddingLeft(1).
+			Foreground(grey)
+
 	styleStatusLineError = lipgloss.NewStyle().
 				Background(red).
 				Foreground(white).
@@ -72,7 +76,6 @@ var (
 
 	styleBullet = []lipgloss.Style{
 		lipgloss.NewStyle().
-			Foreground(yellow).
 			Padding(0, 1),
 
 		lipgloss.NewStyle().

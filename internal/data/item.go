@@ -260,6 +260,26 @@ func (i *Item) Depth() int {
 	return depth
 }
 
+// ToDoStats returns the number of children in statuses "Done"
+// or "Canceled" and the number of children in statuses other
+// than "None".
+func (item *Item) ToDoStats() (int, int) {
+	var completed, total int
+	for c := item.Head(); c != nil; c = c.Next() {
+		s := c.Status()
+
+		if s != StatusNone {
+			total++
+		}
+
+		if s == StatusDone || s == StatusCanceled {
+			completed++
+		}
+	}
+
+	return completed, total
+}
+
 // DisplayedChildren returns a flattened list of non-collapsed
 // child items.
 func (i *Item) DisplayedChildren() []*Item {

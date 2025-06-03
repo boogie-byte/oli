@@ -15,6 +15,8 @@
 package model
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -410,39 +412,50 @@ func (m *Outline) renderBreadcrumbs() string {
 	return breadcrumbs
 }
 
-func (m *Outline) renderItems() string {
-	var itemStrs []string
-	for _, item := range m.workspace.Root().DisplayedChildren() {
-		padding := getLinePadding(item)
+func (m *Outline) renderItemEntry(item *data.Item) string {
+	bullet := getBullet(item)
+	bullet = styleBullet[(item.Depth()-1)%len(styleBullet)].Render(bullet)
 
-		var title string
-		if m.workspace.Cursor() == item {
-			m.textInput.TextStyle = getItemStyle(item)
-			title = m.textInput.View()
-		} else {
-			title = item.Title()
+	status := getStatus(item)
 
-			maxTitleWidth := m.getMaxTitleWidth(padding)
-			title = runewidth.Truncate(title, maxTitleWidth, "...")
-			title = getItemStyle(item).Render(title)
-		}
+	padding := getLinePadding(item)
 
-		bullet := getBullet(item)
-		bullet = styleBullet[(item.Depth()-1)%len(styleBullet)].Render(bullet)
+	var title string
+	if m.workspace.Cursor() == item {
+		m.textInput.TextStyle = getItemStyle(item)
+		title = m.textInput.View()
+	} else {
+		title = item.Title()
 
-		status := getStatus(item)
-
-		itemRow := lipgloss.JoinHorizontal(lipgloss.Top, bullet, status, title)
-		itemRow = lipgloss.PlaceHorizontal(
-			m.windowWidth-padding,
-			lipgloss.Left,
-			itemRow,
-		)
-
-		itemStrs = append(itemStrs, itemRow)
+		maxTitleWidth := m.getMaxTitleWidth(padding)
+		title = runewidth.Truncate(title, maxTitleWidth, "...")
+		title = getItemStyle(item).Render(title)
 	}
 
-	items := lipgloss.JoinVertical(lipgloss.Right, itemStrs...)
+	var todoStats string
+	if completed, total := item.ToDoStats(); completed != 0 || total != 0 {
+		todoStats = fmt.Sprintf("(%d/%d)", completed, total)
+		todoStats = styleTodoStats.Render(todoStats)
+	}
+
+	itemRow := lipgloss.JoinHorizontal(lipgloss.Top, bullet, status, title, todoStats)
+	itemRow = lipgloss.PlaceHorizontal(
+		m.windowWidth-padding,
+		lipgloss.Left,
+		itemRow,
+	)
+
+	return itemRow
+}
+
+func (m *Outline) renderItemList() string {
+	var itemEntries []string
+	for _, item := range m.workspace.Root().DisplayedChildren() {
+		itemEntry := m.renderItemEntry(item)
+		itemEntries = append(itemEntries, itemEntry)
+	}
+
+	items := lipgloss.JoinVertical(lipgloss.Right, itemEntries...)
 	items = lipgloss.PlaceVertical(
 		m.windowHeight-4,
 		lipgloss.Top,
@@ -465,7 +478,7 @@ func (m *Outline) View() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		m.renderBreadcrumbs(),
-		m.renderItems(),
+		m.renderItemList(),
 		m.renderStatusLine(),
 	)
 }
