@@ -30,29 +30,38 @@ const (
 	workspaceFilename = "workspace.xml"
 	storageVersion    = 2
 
-	xmlElemItem             = "item"
-	xmlItemAttrId           = "id"
-	xmlItemAttrStatus       = "status"
-	xmlItemAttrCollapsed    = "collapsed"
-	xmlItemAttrSelected     = "selected"
-	xmlItemAttrZoomedIn     = "zoomed-in"
-	xmlElemTitle            = "title"
+	xmlElemItem          = "item"
+	xmlItemAttrId        = "id"
+	xmlItemAttrStatus    = "status"
+	xmlItemAttrCollapsed = "collapsed"
+
+	xmlElemTitle = "title"
+
 	xmlElemWorkspace        = "oli-workspace"
 	xmlWorkspaceAttrVersion = "version"
+	xmlWorkspaceAttrCursor  = "cursor"
+	xmlWorkspaceAttrRoot    = "root"
 )
 
 type Workspace struct {
 	directory string
 
-	root   *Item
-	cursor *Item
+	itemIndex map[uuid.UUID]*Item
+
+	realRoot *Item
+	root     *Item
+	cursor   *Item
 }
 
 func NewWorkspace(directory, rootTitle string) *Workspace {
 	w := &Workspace{
 		directory: directory,
+		itemIndex: make(map[uuid.UUID]*Item),
 	}
-	w.root = w.NewItem(rootTitle)
+
+	w.realRoot = w.NewItem(rootTitle)
+	w.root = w.realRoot
+	w.cursor = w.realRoot
 
 	return w
 }
@@ -119,6 +128,8 @@ func (w *Workspace) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	start.Name.Local = xmlElemWorkspace
 	start.Attr = []xml.Attr{
 		{Name: xml.Name{Local: xmlWorkspaceAttrVersion}, Value: strconv.Itoa(storageVersion)},
+		{Name: xml.Name{Local: xmlWorkspaceAttrCursor}, Value: w.cursor.id.String()},
+		{Name: xml.Name{Local: xmlWorkspaceAttrRoot}, Value: w.root.id.String()},
 	}
 
 	if err := e.EncodeToken(start); err != nil {
@@ -133,17 +144,30 @@ func (w *Workspace) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 }
 
 func (w *Workspace) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	var vStr string
-	for _, attr := range start.Attr {
-		if attr.Name.Local == xmlWorkspaceAttrVersion {
-			vStr = attr.Value
-		}
-	}
+	var cursorUUID uuid.UUID
+	var rootUUID uuid.UUID
 
-	if v, err := strconv.Atoi(vStr); err != nil {
-		return fmt.Errorf("failed to parse storage version: %w", err)
-	} else if v != storageVersion {
-		return fmt.Errorf("unsupported storage version %d", v)
+	for _, attr := range start.Attr {
+		switch attr.Name.Local {
+		case xmlWorkspaceAttrVersion:
+			if v, err := strconv.Atoi(attr.Value); err != nil {
+				return fmt.Errorf("failed to parse storage version: %w", err)
+			} else if v != storageVersion {
+				return fmt.Errorf("unsupported storage version %d", v)
+			}
+		case xmlWorkspaceAttrCursor:
+			var err error
+			cursorUUID, err = uuid.Parse(attr.Value)
+			if err != nil {
+				return err
+			}
+		case xmlWorkspaceAttrRoot:
+			var err error
+			rootUUID, err = uuid.Parse(attr.Value)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	for {
@@ -159,7 +183,7 @@ func (w *Workspace) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 		case xml.StartElement:
 			switch se.Name.Local {
 			case xmlElemItem:
-				if err := d.DecodeElement(&w.root, &se); err != nil {
+				if err := d.DecodeElement(w.realRoot, &se); err != nil {
 					return err
 				}
 			default:
@@ -169,10 +193,13 @@ func (w *Workspace) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 			}
 		case xml.EndElement:
 			if se.Name == start.Name {
-				return nil
+				break
 			}
 		}
 	}
+
+	w.root = w.itemIndex[rootUUID]
+	w.cursor = w.itemIndex[cursorUUID]
 
 	return nil
 }

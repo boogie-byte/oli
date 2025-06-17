@@ -16,6 +16,7 @@ package data
 
 import (
 	"encoding/xml"
+	"errors"
 	"io"
 	"strconv"
 
@@ -24,6 +25,8 @@ import (
 
 var (
 	strTrue = strconv.FormatBool(true)
+
+	errMissingItemId = errors.New("Missing item id")
 )
 
 type Item struct {
@@ -373,14 +376,6 @@ func (i *Item) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 		start.Attr = append(start.Attr, newTrueAttr(xmlItemAttrCollapsed))
 	}
 
-	if i == i.workspace.cursor {
-		start.Attr = append(start.Attr, newTrueAttr(xmlItemAttrSelected))
-	}
-
-	if i == i.workspace.root {
-		start.Attr = append(start.Attr, newTrueAttr(xmlItemAttrZoomedIn))
-	}
-
 	if err := e.EncodeToken(start); err != nil {
 		return err
 	}
@@ -400,34 +395,29 @@ func (i *Item) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 
 func (i *Item) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	for _, attr := range start.Attr {
-		if attr.Name.Local == xmlItemAttrId {
+		switch attr.Name.Local {
+		case xmlItemAttrId:
 			var err error
 			i.id, err = uuid.Parse(attr.Value)
 			if err != nil {
 				return err
 			}
-		}
-
-		if attr.Name.Local == xmlItemAttrStatus {
+		case xmlItemAttrStatus:
 			var err error
 			i.status, err = ParseStatus(attr.Value)
 			if err != nil {
 				return err
 			}
-		}
-
-		if attr.Name.Local == xmlItemAttrCollapsed {
+		case xmlItemAttrCollapsed:
 			i.collapsed = true
 		}
-
-		if attr.Name.Local == xmlItemAttrSelected {
-			i.workspace.cursor = i
-		}
-
-		if attr.Name.Local == xmlItemAttrZoomedIn {
-			i.workspace.root = i
-		}
 	}
+
+	if i.id == uuid.Nil {
+		return errMissingItemId
+	}
+
+	i.workspace.itemIndex[i.id] = i
 
 	for {
 		tok, err := d.Token()
