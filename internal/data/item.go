@@ -18,6 +18,8 @@ import (
 	"encoding/xml"
 	"io"
 	"strconv"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -27,6 +29,9 @@ var (
 type Item struct {
 	// Workspace the item belongs to
 	workspace *Workspace
+
+	// Item unique id
+	id uuid.UUID
 
 	// Parent item
 	parent *Item
@@ -352,6 +357,10 @@ func newTrueAttr(name string) xml.Attr {
 
 func (i *Item) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	start.Name.Local = xmlElemItem
+	start.Attr = append(start.Attr, xml.Attr{
+		Name:  xml.Name{Local: xmlItemAttrId},
+		Value: i.id.String(),
+	})
 
 	if i.status != StatusNone {
 		start.Attr = append(start.Attr, xml.Attr{
@@ -391,6 +400,14 @@ func (i *Item) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 
 func (i *Item) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	for _, attr := range start.Attr {
+		if attr.Name.Local == xmlItemAttrId {
+			var err error
+			i.id, err = uuid.Parse(attr.Value)
+			if err != nil {
+				return err
+			}
+		}
+
 		if attr.Name.Local == xmlItemAttrStatus {
 			var err error
 			i.status, err = ParseStatus(attr.Value)

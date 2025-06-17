@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -29,6 +31,7 @@ const (
 	storageVersion    = 2
 
 	xmlElemItem             = "item"
+	xmlItemAttrId           = "id"
 	xmlItemAttrStatus       = "status"
 	xmlItemAttrCollapsed    = "collapsed"
 	xmlItemAttrSelected     = "selected"
@@ -78,12 +81,11 @@ func LoadWorkspace(directory string) (*Workspace, error) {
 
 // NewItem returns a new item not attached to any list.
 func (w *Workspace) NewItem(title string) *Item {
-	i := &Item{
+	return &Item{
 		workspace: w,
+		id:        uuid.New(),
 		title:     title,
 	}
-
-	return i
 }
 
 func (w *Workspace) Root() *Item {
